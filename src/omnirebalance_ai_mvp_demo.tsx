@@ -22,7 +22,9 @@ import {
   Play,
   RotateCcw,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  HelpCircle,
+  X
 } from 'lucide-react';
 
 // Initial asset configuration for the unified omniagent.near Chain-Abstracted Portfolio
@@ -170,6 +172,34 @@ export default function App() {
   const [viewMode, setViewMode] = useState('simulation'); // 'simulation' | 'sdk'
   const [autoRebalance, setAutoRebalance] = useState(true);
 
+  // Onboarding Modal State
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+
+  const onboardingSteps = [
+    {
+      title: "Welcome to OmniRebalance AI",
+      subtitle: "Autonomous Cross-Chain Portfolio Guardian",
+      description: "Managing crypto across Solana, Ethereum, Bitcoin, and Avalanche is fragmented. OmniRebalance AI acts as your 24/7 safety shield—protecting your capital against sudden crashes using NEAR Intents and Chain Signatures.",
+      icon: <ShieldCheck className="w-8 h-8 text-[#00EC97]" />,
+      badge: "Step 1 of 3"
+    },
+    {
+      title: "Session-Key Guardrails",
+      subtitle: "Full Control, Zero Custodial Risk",
+      description: "Your master keys stay secure in MPC. The AI operates under strict user-defined rules (Drift Trigger %, Max Trade Cap %, Max Slippage) to automatically de-risk portfolios into USDC.",
+      icon: <Sliders className="w-8 h-8 text-cyan-400" />,
+      badge: "Step 2 of 3"
+    },
+    {
+      title: "Test the Live Simulation",
+      subtitle: "Simulate Market Crashes Instantly",
+      description: "Use the Presentation Triggers on the dashboard to simulate a Solana Flash Crash or Ethereum Drop. Watch off-chain solvers compete and settle atomically in ~2 seconds with zero user gas fees.",
+      icon: <Zap className="w-8 h-8 text-amber-400" />,
+      badge: "Step 3 of 3"
+    }
+  ];
+
   // Session Key Guardrails Configuration
   const [driftThreshold, setDriftThreshold] = useState(10); // % drift trigger
   const [maxTradeCap, setMaxTradeCap] = useState(50); // % of asset max trade
@@ -223,7 +253,6 @@ export default function App() {
     const usdValue = asset.balance * asset.price;
     const currentWeight = totalPortfolioValue > 0 ? (usdValue / totalPortfolioValue) * 100 : 0;
     const priceChangePct = ((asset.price - asset.initialPrice) / asset.initialPrice) * 100;
-    // Drift relative to target weight (for active risk assets)
     const weightDrift = asset.targetWeight > 0 ? currentWeight - asset.targetWeight : 0;
     return {
       ...asset,
@@ -254,7 +283,6 @@ export default function App() {
     if (pipelineLockRef.current) return;
     pipelineLockRef.current = true;
 
-    const totalVal = currentAssetsList.reduce((sum, a) => sum + a.balance * a.price, 0);
     const source = breachAsset;
     const sourceUsd = source.balance * source.price;
 
@@ -264,12 +292,10 @@ export default function App() {
       return;
     }
 
-    // Determine target asset based on selected strategy
     let target;
     if (hedgeStrategy === 'usdc') {
       target = currentAssetsList.find((a) => a.id === 'usdc');
     } else {
-      // Find top performing risk asset
       const candidates = currentAssetsList.filter((a) => a.id !== source.id && a.id !== 'usdc');
       target = candidates.reduce((best, curr) => {
         const bestPerf = (best.price - best.initialPrice) / best.initialPrice;
@@ -278,7 +304,6 @@ export default function App() {
       }, candidates[0]);
     }
 
-    // Enforce Session Key Guardrail: Max Single Trade Cap
     const tradeFraction = Math.min(maxTradeCap / 100, 0.5);
     const tradeUsd = sourceUsd * tradeFraction;
     const tradeTokens = tradeUsd / source.price;
@@ -308,7 +333,6 @@ export default function App() {
       },
     };
 
-    // Competing Off-Chain Solvers
     const solverQuotes = [
       {
         name: 'Wintermute Intent Solver',
@@ -343,7 +367,6 @@ export default function App() {
       customReason ||
       `${source.symbol} dropped ${Math.abs(((source.price - source.initialPrice) / source.initialPrice) * 100).toFixed(1)}%, breaching ${driftThreshold}% volatility/drift guardrail.`;
 
-    // STEP 1: AI Strategy Engine Analysis
     setPipelineState({
       active: true,
       step: 1,
@@ -365,7 +388,6 @@ export default function App() {
       intentHash
     );
 
-    // STEP 2: Intent Broadcast to NEAR Verifier
     setTimeout(() => {
       setPipelineState((prev) => ({ ...prev, step: 2 }));
       addLog(
@@ -376,12 +398,10 @@ export default function App() {
       );
     }, 850);
 
-    // STEP 3: Off-Chain Solver Competition
     setTimeout(() => {
       setPipelineState((prev) => ({ ...prev, step: 3 }));
     }, 1750);
 
-    // STEP 4: Verifier Atomic Settlement & Portfolio Update
     setTimeout(() => {
       const winning = solverQuotes[0];
       setAssets((prevAssets) =>
@@ -396,7 +416,6 @@ export default function App() {
         })
       );
 
-      // Estimate downside protection saved
       const savedEstimate = tradeUsd * 0.14;
       setCapitalProtected((prev) => prev + savedEstimate);
 
@@ -413,7 +432,6 @@ export default function App() {
     }, 2800);
   };
 
-  // Market Simulation Handlers
   const simulateSolCrash = () => {
     if (pipelineLockRef.current) return;
     addLog('MARKET', 'Market Event: SOL Flash Crash (-18.0%)', 'Solana spot price plunging across DEX/CEX feeds...');
@@ -472,7 +490,6 @@ export default function App() {
     const usdcAsset = updated.find((a) => a.id === 'usdc');
     if (autoRebalance && usdcAsset && usdcAsset.balance > 5) {
       setTimeout(() => {
-        // Re-deploy USDC back into SOL/target
         const solTarget = updated.find((a) => a.id === 'sol');
         const deployUsd = usdcAsset.balance * 0.8;
         const boughtSol = (deployUsd * 0.999) / solTarget.price;
@@ -492,21 +509,6 @@ export default function App() {
         );
       }, 700);
     }
-  };
-
-  const handleForceRebalance = () => {
-    if (pipelineLockRef.current) return;
-    // Pick the asset with largest negative price change or lowest weight
-    const riskAssets = enrichedAssets.filter((a) => a.id !== 'usdc' && a.usdValue > 5);
-    if (!riskAssets.length) return;
-    const worstAsset = riskAssets.reduce((prev, curr) =>
-      curr.priceChangePct < prev.priceChangePct ? curr : prev
-    );
-    triggerRebalancePipeline(
-      assets,
-      worstAsset,
-      `Manual presenter override: Rebalancing ${worstAsset.symbol} via NEAR Intents Solver Network.`
-    );
   };
 
   const resetPortfolio = () => {
@@ -536,7 +538,93 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070B12] text-slate-100 font-sans selection:bg-[#00EC97]/30 selection:text-[#00EC97]">
+    <div className="min-h-screen bg-[#070B12] text-slate-100 font-sans selection:bg-[#00EC97]/30 selection:text-[#00EC97] relative">
+      
+      {/* ONBOARDING MODAL */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6 animate-fade-in">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#00EC97] bg-[#00EC97]/10 px-3 py-1 rounded-full border border-[#00EC97]/20">
+                {onboardingSteps[onboardingStep].badge}
+              </span>
+              <button 
+                onClick={() => setShowOnboarding(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition"
+                aria-label="Close onboarding"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center text-center space-y-3 pt-2">
+              <div className="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center shadow-inner">
+                {onboardingSteps[onboardingStep].icon}
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  {onboardingSteps[onboardingStep].title}
+                </h3>
+                <p className="text-xs font-medium text-emerald-400 mt-0.5">
+                  {onboardingSteps[onboardingStep].subtitle}
+                </p>
+              </div>
+              <p className="text-sm text-slate-300 leading-relaxed pt-1">
+                {onboardingSteps[onboardingStep].description}
+              </p>
+            </div>
+
+            {/* Step Dots */}
+            <div className="flex justify-center gap-2">
+              {onboardingSteps.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setOnboardingStep(idx)}
+                  className={`h-2 rounded-full transition-all ${
+                    idx === onboardingStep ? 'w-6 bg-[#00EC97]' : 'w-2 bg-slate-700'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              {onboardingStep > 0 ? (
+                <button
+                  onClick={() => setOnboardingStep(s => s - 1)}
+                  className="text-sm text-slate-400 hover:text-white px-3 py-2 transition"
+                >
+                  Back
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowOnboarding(false)}
+                  className="text-sm text-slate-400 hover:text-white px-3 py-2 transition"
+                >
+                  Skip Tour
+                </button>
+              )}
+
+              {onboardingStep < onboardingSteps.length - 1 ? (
+                <button
+                  onClick={() => setOnboardingStep(s => s + 1)}
+                  className="bg-[#00EC97] hover:bg-[#00d688] text-slate-950 text-sm font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 transition shadow-lg shadow-[#00EC97]/20"
+                >
+                  Next <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowOnboarding(false)}
+                  className="bg-[#00EC97] hover:bg-[#00d688] text-slate-950 text-sm font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 transition shadow-lg shadow-[#00EC97]/20"
+                >
+                  Get Started <Sparkles className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Subtle Ambient Background Glow */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 left-1/4 w-96 h-96 bg-[#00EC97]/10 rounded-full blur-3xl" />
@@ -546,7 +634,6 @@ export default function App() {
       {/* TOP NAVIGATION / HEADER */}
       <header className="relative z-10 border-b border-slate-800/80 bg-[#0B111E]/90 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          {/* Brand Title */}
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#00EC97] to-cyan-400 p-[1px] shadow-lg shadow-[#00EC97]/20">
               <div className="w-full h-full bg-[#090F1A] rounded-xl flex items-center justify-center">
@@ -562,6 +649,15 @@ export default function App() {
                   <Sparkles className="w-3 h-3" />
                   Powered by NEAR Intents &amp; Chain Signatures
                 </span>
+                <button
+                  onClick={() => {
+                    setOnboardingStep(0);
+                    setShowOnboarding(true);
+                  }}
+                  className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-indigo-500/30 flex items-center gap-1 transition ml-1"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" /> Quick Tour
+                </button>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
                 Autonomous Cross-Chain Portfolio Hedge &amp; Intent Execution Agent • Unified Account:{' '}
@@ -570,7 +666,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Live Status Pills & Mode Switcher */}
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/90 border border-slate-800 text-xs">
               <span className="w-2 h-2 rounded-full bg-[#00EC97] animate-pulse" />
@@ -588,7 +683,6 @@ export default function App() {
               <span>Session Guardrails Active</span>
             </div>
 
-            {/* View Toggle */}
             <div className="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-800">
               <button
                 onClick={() => setViewMode('simulation')}
@@ -619,7 +713,6 @@ export default function App() {
 
       {/* MAIN CONTENT */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* SECTION 1: UNIFIED CHAIN-ABSTRACTED PORTFOLIO OVERVIEW */}
         <section className="rounded-2xl bg-[#0D1424]/90 border border-slate-800/90 p-5 shadow-xl backdrop-blur-sm">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
             <div>
@@ -642,7 +735,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Unified Allocation Progress Bar */}
             <div className="w-full md:w-1/2 space-y-1.5">
               <div className="flex justify-between text-xs text-slate-400">
                 <span>Live Cross-Chain Weight Distribution</span>
@@ -651,581 +743,3 @@ export default function App() {
               <div className="h-3.5 w-full rounded-full bg-slate-900 overflow-hidden flex p-0.5 border border-slate-800 gap-0.5">
                 {enrichedAssets.map((asset) =>
                   asset.currentWeight > 0.5 ? (
-                    <div
-                      key={asset.id}
-                      style={{
-                        width: `${asset.currentWeight}%`,
-                        backgroundColor: asset.color,
-                      }}
-                      title={`${asset.symbol}: ${asset.currentWeight.toFixed(1)}%`}
-                      className="h-full rounded-sm transition-all duration-500"
-                    />
-                  ) : null
-                )}
-              </div>
-              <div className="flex flex-wrap gap-3 text-[11px] text-slate-400">
-                {enrichedAssets.map((a) => (
-                  <span key={a.id} className="flex items-center gap-1">
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: a.color }}
-                    />
-                    {a.symbol}: <strong className="text-slate-200">{a.currentWeight.toFixed(1)}%</strong>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* 5 Asset Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mt-4">
-            {enrichedAssets.map((asset) => {
-              const isDropping = asset.priceChangePct < -1;
-              const isPumping = asset.priceChangePct > 1;
-              return (
-                <div
-                  key={asset.id}
-                  className={`rounded-xl p-4 border transition-all duration-300 ${
-                    asset.id === 'usdc'
-                      ? 'bg-gradient-to-b from-blue-950/30 to-slate-900/80 border-blue-500/30'
-                      : 'bg-slate-900/75 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold"
-                        style={{ backgroundColor: asset.bgAccent, color: asset.color }}
-                      >
-                        {asset.symbol}
-                      </span>
-                      <div>
-                        <div className="text-sm font-bold text-white leading-none">{asset.symbol}</div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">{asset.chain}</div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                      {asset.chainBadge}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex items-baseline justify-between">
-                    <div className="text-xl font-bold text-white">${asset.usdValue.toFixed(2)}</div>
-                    <div
-                      className={`text-xs font-semibold flex items-center gap-0.5 ${
-                        isDropping
-                          ? 'text-rose-400'
-                          : isPumping
-                          ? 'text-[#00EC97]'
-                          : 'text-slate-400'
-                      }`}
-                    >
-                      {isDropping && <TrendingDown className="w-3 h-3" />}
-                      {isPumping && <TrendingUp className="w-3 h-3" />}
-                      {asset.priceChangePct >= 0 ? '+' : ''}
-                      {asset.priceChangePct.toFixed(1)}%
-                    </div>
-                  </div>
-
-                  <div className="mt-1 flex justify-between text-xs text-slate-400">
-                    <span>
-                      {asset.balance.toFixed(asset.id === 'btc' ? 5 : 3)} {asset.symbol}
-                    </span>
-                    <span>@ ${asset.price.toLocaleString()}</span>
-                  </div>
-
-                  <div className="mt-3 pt-2.5 border-t border-slate-800/80 space-y-1 text-[11px]">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Weight / Target:</span>
-                      <span className="font-mono text-slate-200">
-                        {asset.currentWeight.toFixed(1)}% / {asset.targetWeight}%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-500">
-                      <span>MPC Addr:</span>
-                      <span className="font-mono text-[10px] text-cyan-300/90">
-                        {asset.derivedAddress.slice(0, 6)}...{asset.derivedAddress.slice(-4)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* CONDITIONAL VIEW: LIVE SIMULATION VS SDK INSPECTOR */}
-        {viewMode === 'simulation' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* LEFT PANEL: MARKET EVENT SIMULATOR & SESSION KEY GUARDRAILS (5 COLS) */}
-            <div className="lg:col-span-5 space-y-6">
-              {/* Interactive Presentation Controls */}
-              <div className="rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-5 shadow-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-[#00EC97]" />
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-white">
-                      Live Presentation Scenario Triggers
-                    </h2>
-                  </div>
-                  <button
-                    onClick={resetPortfolio}
-                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-slate-800/70 hover:bg-slate-800 transition"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Reset ($100 ea)
-                  </button>
-                </div>
-
-                <p className="text-xs text-slate-400 mb-4">
-                  Simulate live market volatility across chains to watch OmniAgent detect drift and settle a cross-chain hedge via NEAR Intents in ~2 seconds.
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <button
-                    onClick={simulateSolCrash}
-                    disabled={pipelineState.active}
-                    className="p-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-left transition group disabled:opacity-50"
-                  >
-                    <div className="flex items-center justify-between text-rose-400 font-bold text-xs">
-                      <span>SOL Flash Crash</span>
-                      <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-[11px]">-18%</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Triggers automatic hedge from Solana into USDC reserve.
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={simulateEthDrop}
-                    disabled={pipelineState.active}
-                    className="p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-left transition group disabled:opacity-50"
-                  >
-                    <div className="flex items-center justify-between text-amber-400 font-bold text-xs">
-                      <span>ETH Volatility Spike</span>
-                      <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-[11px]">-15%</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      De-risks Ethereum L1 exposure via Chain Signatures.
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={simulateMarketRally}
-                    disabled={pipelineState.active}
-                    className="p-3 rounded-xl bg-[#00EC97]/10 hover:bg-[#00EC97]/20 border border-[#00EC97]/30 text-left transition disabled:opacity-50"
-                  >
-                    <div className="flex items-center justify-between text-[#00EC97] font-bold text-xs">
-                      <span>Market Rally</span>
-                      <span className="px-1.5 py-0.5 rounded bg-[#00EC97]/20 text-[11px]">+12% All</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Rotates safe-haven USDC reserve back into growth assets.
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={handleForceRebalance}
-                    disabled={pipelineState.active}
-                    className="p-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-left transition disabled:opacity-50"
-                  >
-                    <div className="flex items-center justify-between text-cyan-300 font-bold text-xs">
-                      <span>Force Rebalance</span>
-                      <Play className="w-3.5 h-3.5" />
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Manually invoke NEAR Intent solver auction now.
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              {/* Session Key Guardrails & Strategy Configuration */}
-              <div className="rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-5 shadow-lg space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-cyan-400" />
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-white">
-                      Session Key Guardrails &amp; Policy
-                    </h2>
-                  </div>
-                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
-                    <span className="text-slate-400">Auto-Pilot</span>
-                    <input
-                      type="checkbox"
-                      checked={autoRebalance}
-                      onChange={(e) => setAutoRebalance(e.target.checked)}
-                      className="accent-[#00EC97] w-4 h-4 rounded"
-                    />
-                  </label>
-                </div>
-
-                {/* Hedge Mode Toggle */}
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1.5">
-                    Autonomous Hedging Strategy Mode
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-900 border border-slate-800">
-                    <button
-                      onClick={() => setHedgeStrategy('usdc')}
-                      className={`py-2 px-2.5 rounded-lg text-xs font-semibold transition ${
-                        hedgeStrategy === 'usdc'
-                          ? 'bg-[#00EC97] text-slate-950'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Safe-Haven (USDC)
-                    </button>
-                    <button
-                      onClick={() => setHedgeStrategy('momentum')}
-                      className={`py-2 px-2.5 rounded-lg text-xs font-semibold transition ${
-                        hedgeStrategy === 'momentum'
-                          ? 'bg-cyan-400 text-slate-950'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Top Performer Swap
-                    </button>
-                  </div>
-                </div>
-
-                {/* Sliders */}
-                <div className="space-y-3 pt-1">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-slate-400">Volatility / Drift Trigger Threshold</span>
-                      <span className="font-mono font-bold text-[#00EC97]">{driftThreshold}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="5"
-                      max="25"
-                      step="1"
-                      value={driftThreshold}
-                      onChange={(e) => setDriftThreshold(Number(e.target.value))}
-                      className="w-full accent-[#00EC97] cursor-pointer"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-slate-400">Max Single Trade Cap (On-Chain Limit)</span>
-                      <span className="font-mono font-bold text-cyan-300">{maxTradeCap}% of Asset</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="10"
-                      max="100"
-                      step="5"
-                      value={maxTradeCap}
-                      onChange={(e) => setMaxTradeCap(Number(e.target.value))}
-                      className="w-full accent-cyan-400 cursor-pointer"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-slate-400">Verifier Max Slippage Enforcement</span>
-                      <span className="font-mono font-bold text-slate-200">{maxSlippage}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="1.0"
-                      step="0.1"
-                      value={maxSlippage}
-                      onChange={(e) => setMaxSlippage(Number(e.target.value))}
-                      className="w-full accent-[#00EC97] cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-2.5 text-[11px] text-slate-400">
-                  <Lock className="w-4 h-4 text-[#00EC97] shrink-0 mt-0.5" />
-                  <span>
-                    AI Agent signs only with a scoped <strong className="text-slate-200">NEAR Session Key</strong>. Master keys remain isolated inside NEAR&#39;s decentralized MPC (<code className="text-cyan-300">v1.signer</code>) network.
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT PANEL: REAL-TIME NEAR INTENTS PIPELINE & SOLVER AUCTION (7 COLS) */}
-            <div className="lg:col-span-7 rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-5 shadow-lg flex flex-col justify-between">
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-[#00EC97]" />
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-white">
-                      NEAR Intents Execution &amp; Solver Auction Pipeline
-                    </h2>
-                  </div>
-                  <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-cyan-300">
-                    @defuse-protocol/intents-sdk
-                  </span>
-                </div>
-
-                {/* 4-Step Stepper */}
-                <div className="grid grid-cols-4 gap-2 my-5">
-                  {[
-                    { num: 1, label: 'AI Drift Signal' },
-                    { num: 2, label: 'Intent Broadcast' },
-                    { num: 3, label: 'Solver Auction' },
-                    { num: 4, label: 'MPC Settlement' },
-                  ].map((s) => {
-                    const isCompleted = pipelineState.step > s.num || (pipelineState.step === 4 && s.num === 4);
-                    const isCurrent = pipelineState.step === s.num && pipelineState.active;
-                    return (
-                      <div
-                        key={s.num}
-                        className={`p-2.5 rounded-xl border text-center transition-all ${
-                          isCurrent
-                            ? 'bg-[#00EC97]/15 border-[#00EC97] text-white shadow-md shadow-[#00EC97]/10'
-                            : isCompleted
-                            ? 'bg-emerald-950/30 border-emerald-500/40 text-[#00EC97]'
-                            : 'bg-slate-900/60 border-slate-800 text-slate-500'
-                        }`}
-                      >
-                        <div className="text-[11px] font-mono font-bold">STEP 0{s.num}</div>
-                        <div className="text-xs font-semibold mt-0.5 truncate">{s.label}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Pipeline Dynamic Body */}
-                {pipelineState.step === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-700/90 bg-slate-900/40 p-8 text-center my-4">
-                    <div className="w-12 h-12 rounded-full bg-slate-800/90 flex items-center justify-center mx-auto mb-3 text-[#00EC97]">
-                      <RefreshCw className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-base font-bold text-white">
-                      Monitoring Multi-Chain Liquidity &amp; Drift
-                    </h3>
-                    <p className="text-xs text-slate-400 max-w-md mx-auto mt-1.5 leading-relaxed">
-                      OmniAgent is continuously watching SOL, ETH, BTC, and AVAX balances on <code className="text-cyan-300">omniagent.near</code>. Trigger a <strong className="text-rose-400">SOL Flash Crash (-18%)</strong> on the left to observe autonomous intent routing.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Trade Summary Banner */}
-                    <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className="px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-300 font-mono text-xs font-bold border border-rose-500/30">
-                          -{pipelineState.tradeTokenAmount.toFixed(4)} {pipelineState.sourceAsset?.symbol}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-[#00EC97]" />
-                        <span className="px-2.5 py-1 rounded-lg bg-[#00EC97]/15 text-[#00EC97] font-mono text-xs font-bold border border-[#00EC97]/30">
-                          +{pipelineState.winningSolver?.outAmount.toFixed(4)} {pipelineState.targetAsset?.symbol}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-300">
-                        Trade Size: <strong className="text-white">${pipelineState.tradeUsdValue.toFixed(2)}</strong> • Gas Fee:{' '}
-                        <strong className="text-[#00EC97]">$0.00 (Relayed)</strong>
-                      </div>
-                    </div>
-
-                    {/* Off-Chain Solver Competition Table */}
-                    <div>
-                      <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                        <span className="font-semibold uppercase tracking-wider">
-                          Off-Chain Solver Network Competition (1Click API)
-                        </span>
-                        <span className="text-[#00EC97] font-mono">
-                          {pipelineState.step >= 3 ? 'Winner Selected (Atomic Fill)' : 'Requesting Quotes...'}
-                        </span>
-                      </div>
-                      <div className="space-y-2">
-                        {pipelineState.solvers.map((solver, idx) => (
-                          <div
-                            key={idx}
-                            className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 transition-all ${
-                              solver.winner && pipelineState.step >= 3
-                                ? 'bg-[#00EC97]/10 border-[#00EC97]/50'
-                                : 'bg-slate-900/70 border-slate-800 opacity-75'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              {solver.winner && pipelineState.step >= 3 ? (
-                                <CheckCircle2 className="w-4 h-4 text-[#00EC97]" />
-                              ) : (
-                                <div className="w-4 h-4 rounded-full border border-slate-600" />
-                              )}
-                              <div>
-                                <div className="text-xs font-bold text-white flex items-center gap-2">
-                                  {solver.name}
-                                  {solver.winner && pipelineState.step >= 3 && (
-                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#00EC97] text-slate-950 font-extrabold">
-                                      {solver.tag}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-[11px] text-slate-400">
-                                  Destination Gas Covered: {solver.feeCovered} • Settlement: {solver.latency}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right font-mono">
-                              <div className="text-xs font-bold text-white">
-                                {solver.outAmount.toFixed(4)} {pipelineState.targetAsset?.symbol}
-                              </div>
-                              <div className="text-[11px] text-slate-400">${solver.outUsd.toFixed(2)}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Live Outcome Intent JSON Snippet */}
-                    <div>
-                      <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-                        <span>Signed Outcome Intent Payload (Verifier Contract)</span>
-                        <button
-                          onClick={() =>
-                            copyToClipboard(JSON.stringify(pipelineState.intentPayload, null, 2), setCopiedPayload)
-                          }
-                          className="text-cyan-300 hover:text-cyan-200 flex items-center gap-1"
-                        >
-                          {copiedPayload ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                          {copiedPayload ? 'Copied JSON' : 'Copy Payload'}
-                        </button>
-                      </div>
-                      <pre className="p-3 rounded-xl bg-[#070B12] border border-slate-800 text-[11px] font-mono text-cyan-200 overflow-x-auto max-h-40">
-                        {JSON.stringify(pipelineState.intentPayload, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom Architecture Footnote */}
-              <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
-                <span>Settlement Finality: NEAR Verifier Smart Contract (Atomic)</span>
-                <span className="text-slate-300 font-mono">Zero Bridge Lockups • Zero MEV Slippage</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* SDK & PAYLOAD INSPECTOR VIEW */
-          <section className="rounded-2xl bg-[#0D1424]/95 border border-slate-800 p-6 shadow-xl space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Code2 className="w-5 h-5 text-cyan-400" />
-                  Production Integration: <code className="text-[#00EC97]">@defuse-protocol/intents-sdk</code>
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Reference implementation showing how OmniAgent constructs outcome-based intents and signs across chains via NEAR MPC (<code className="text-cyan-300">v1.signer</code>).
-                </p>
-              </div>
-              <button
-                onClick={() => copyToClipboard(SDK_INTEGRATION_SNIPPET, setCopiedCode)}
-                className="px-4 py-2 rounded-xl bg-[#00EC97] hover:bg-[#00d689] text-slate-950 font-bold text-xs flex items-center gap-2 self-start sm:self-auto transition"
-              >
-                {copiedCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copiedCode ? 'Copied TypeScript Code' : 'Copy SDK Code'}
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              <div className="lg:col-span-2">
-                <pre className="p-4 rounded-xl bg-[#060911] border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">
-                  {SDK_INTEGRATION_SNIPPET}
-                </pre>
-              </div>
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#00EC97]">
-                    Why NEAR Intents Wins Here
-                  </h3>
-                  <ul className="text-xs text-slate-300 space-y-2 list-disc pl-4">
-                    <li>
-                      <strong>No Multi-Chain Gas Management:</strong> Solvers pay SOL, ETH, and AVAX gas natively and deduct micro-fees from the quote.
-                    </li>
-                    <li>
-                      <strong>Single MPC Identity:</strong> <code className="text-cyan-300">v1.signer</code> derives deterministic addresses across Ed25519 and Secp256k1 curves from <code className="text-cyan-300">omniagent.near</code>.
-                    </li>
-                    <li>
-                      <strong>Atomic Verifier Guarantee:</strong> Either the exact minimum output settles on-chain or the intent reverts cleanly.
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300">
-                    OMFT Multi-Chain Asset Registry
-                  </h3>
-                  <div className="space-y-1.5 text-[11px] font-mono text-slate-300">
-                    <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                      SOL → nep141:sol.omft.near
-                    </div>
-                    <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                      ETH → nep141:eth.omft.near
-                    </div>
-                    <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                      BTC → nep141:btc.omft.near
-                    </div>
-                    <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                      AVAX → nep141:avax.omft.near
-                    </div>
-                    <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                      USDC → nep141:usdc.omft.near
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* BOTTOM PANEL: LIVE EXECUTION AUDIT LOG */}
-        <section className="rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-5 shadow-lg">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-[#00EC97]" />
-              <h2 className="text-sm font-bold uppercase tracking-wider text-white">
-                Verifiable On-Chain Execution &amp; Guardrail Audit Log
-              </h2>
-            </div>
-            <span className="text-xs text-slate-400 font-mono">{logs.length} Events Recorded</span>
-          </div>
-
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-            {logs.map((entry) => {
-              const badgeStyles = {
-                SETTLED: 'bg-[#00EC97]/15 text-[#00EC97] border-[#00EC97]/30',
-                INTENT: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
-                AI_SIGNAL: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
-                MARKET: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-                GUARDRAIL: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-                SYSTEM: 'bg-slate-800 text-slate-300 border-slate-700',
-              }[entry.type] || 'bg-slate-800 text-slate-300 border-slate-700';
-
-              return (
-                <div
-                  key={entry.id}
-                  className="p-3 rounded-xl bg-[#080C16] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-                >
-                  <div className="flex items-start sm:items-center gap-2.5">
-                    <span className="font-mono text-[11px] text-slate-500 shrink-0">{entry.time}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border shrink-0 ${badgeStyles}`}
-                    >
-                      {entry.type}
-                    </span>
-                    <div>
-                      <span className="font-bold text-slate-100 mr-2">{entry.title}:</span>
-                      <span className="text-slate-400">{entry.detail}</span>
-                    </div>
-                  </div>
-                  <div className="font-mono text-[11px] text-slate-500 shrink-0 self-end sm:self-center">
-                    tx: <span className="text-cyan-400/80">{entry.hash}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </main>
-    </div>
-  );
-}
