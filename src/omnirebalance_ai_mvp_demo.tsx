@@ -743,3 +743,437 @@ export default function App() {
               <div className="h-3.5 w-full rounded-full bg-slate-900 overflow-hidden flex p-0.5 border border-slate-800 gap-0.5">
                 {enrichedAssets.map((asset) =>
                   asset.currentWeight > 0.5 ? (
+                    <div
+                      key={asset.id}
+                      style={{
+                        width: `${asset.currentWeight}%`,
+                        backgroundColor: asset.color,
+                      }}
+                      title={`${asset.symbol}: ${asset.currentWeight.toFixed(1)}%`}
+                      className="h-full rounded-sm transition-all duration-500"
+                    />
+                  ) : null
+                )}
+              </div>
+              <div className="flex flex-wrap gap-3 text-[11px] text-slate-400">
+                {enrichedAssets.map((a) => (
+                  <span key={a.id} className="flex items-center gap-1">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: a.color }}
+                    />
+                    {a.symbol}: <strong className="text-slate-200">{a.currentWeight.toFixed(1)}%</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mt-4">
+            {enrichedAssets.map((asset) => {
+              const isDropping = asset.priceChangePct < -1;
+              const isPumping = asset.priceChangePct > 1;
+              return (
+                <div
+                  key={asset.id}
+                  className={`rounded-xl p-4 border transition-all duration-300 ${
+                    asset.id === 'usdc'
+                      ? 'bg-gradient-to-b from-blue-950/30 to-slate-900/80 border-blue-500/30'
+                      : 'bg-slate-900/75 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold"
+                        style={{ backgroundColor: asset.bgAccent, color: asset.color }}
+                      >
+                        {asset.symbol}
+                      </span>
+                      <div>
+                        <div className="text-sm font-bold text-white leading-none">{asset.symbol}</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">{asset.chain}</div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                      {asset.chainBadge}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-baseline justify-between">
+                    <div className="text-xl font-bold text-white">${asset.usdValue.toFixed(2)}</div>
+                    <div
+                      className={`text-xs font-semibold flex items-center gap-0.5 ${
+                        isDropping
+                          ? 'text-rose-400'
+                          : isPumping
+                          ? 'text-[#00EC97]'
+                          : 'text-slate-400'
+                      }`}
+                    >
+                      {isDropping && <TrendingDown className="w-3 h-3" />}
+                      {isPumping && <TrendingUp className="w-3 h-3" />}
+                      {asset.priceChangePct >= 0 ? '+' : ''}
+                      {asset.priceChangePct.toFixed(1)}%
+                    </div>
+                  </div>
+
+                  <div className="mt-1 flex justify-between text-xs text-slate-400">
+                    <span>
+                      {asset.balance.toFixed(asset.id === 'btc' ? 5 : 3)} {asset.symbol}
+                    </span>
+                    <span>@ ${asset.price.toLocaleString()}</span>
+                  </div>
+
+                  <div className="mt-3 pt-2.5 border-t border-slate-800/80 space-y-1 text-[11px]">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Weight / Target:</span>
+                      <span className="font-mono text-slate-200">
+                        {asset.currentWeight.toFixed(1)}% / {asset.targetWeight}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span>MPC Addr:</span>
+                      <span className="font-mono text-[10px] text-cyan-300/90">
+                        {asset.derivedAddress.slice(0, 6)}...{asset.derivedAddress.slice(-4)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {viewMode === 'simulation' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-5 space-y-6">
+              <div className="rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-5 shadow-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-[#00EC97]" />
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+                      Live Presentation Scenario Triggers
+                    </h2>
+                  </div>
+                  <button
+                    onClick={resetPortfolio}
+                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-slate-800/70 hover:bg-slate-800 transition"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset ($100 ea)
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-400 mb-4">
+                  Simulate live market volatility across chains to watch OmniAgent detect drift and settle a cross-chain hedge via NEAR Intents in ~2 seconds.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    onClick={simulateSolCrash}
+                    disabled={pipelineState.active}
+                    className="p-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-left transition group disabled:opacity-50"
+                  >
+                    <div className="flex items-center justify-between text-rose-400 font-bold text-xs">
+                      <span>SOL Flash Crash</span>
+                      <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-[11px]">-18%</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Triggers automatic hedge from Solana into USDC reserve.
+                    </p>
+                  </button>
+
+                  <button
+                    onClick={simulateEthDrop}
+                    disabled={pipelineState.active}
+                    className="p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-left transition group disabled:opacity-50"
+                  >
+                    <div className="flex items-center justify-between text-amber-400 font-bold text-xs">
+                      <span>ETH Volatility Spike</span>
+                      <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-[11px]">-15%</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      De-risks Ethereum L1 exposure via Chain Signatures.
+                    </p>
+                  </button>
+
+                  <button
+                    onClick={simulateMarketRally}
+                    disabled={pipelineState.active}
+                    className="p-3 rounded-xl bg-[#00EC97]/10 hover:bg-[#00EC97]/20 border border-[#00EC97]/30 text-left transition disabled:opacity-50 sm:col-span-2"
+                  >
+                    <div className="flex items-center justify-between text-[#00EC97] font-bold text-xs">
+                      <span>Market Recovery / Rally (+12%)</span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#00EC97]/20 text-[11px]">Re-Deploy</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Rotates USDC safe-haven reserves back into risk assets via intents.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Guardrails Configuration */}
+              <div className="rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-5 shadow-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-cyan-400" />
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+                      Session Key Guardrails
+                    </h2>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
+                    Scoped Access Key
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-400">Drift Trigger Threshold:</span>
+                      <span className="font-mono text-white font-semibold">{driftThreshold}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="5"
+                      max="25"
+                      step="1"
+                      value={driftThreshold}
+                      onChange={(e) => setDriftThreshold(Number(e.target.value))}
+                      className="w-full accent-[#00EC97] bg-slate-800 h-1.5 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-400">Max Single Trade Cap:</span>
+                      <span className="font-mono text-white font-semibold">{maxTradeCap}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="20"
+                      max="100"
+                      step="10"
+                      value={maxTradeCap}
+                      onChange={(e) => setMaxTradeCap(Number(e.target.value))}
+                      className="w-full accent-cyan-400 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
+                    <span className="text-slate-400">Automatic Rebalancer:</span>
+                    <button
+                      onClick={() => setAutoRebalance(!autoRebalance)}
+                      className={`px-3 py-1 rounded-md font-semibold transition ${
+                        autoRebalance
+                          ? 'bg-[#00EC97]/20 text-[#00EC97] border border-[#00EC97]/40'
+                          : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      }`}
+                    >
+                      {autoRebalance ? 'ENABLED (24/7)' : 'MANUAL ONLY'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT PANEL: EXECUTION PIPELINE & AUDIT LOGS (7 COLS) */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* Execution Pipeline Status */}
+              <div className="rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-5 shadow-lg">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Activity className={`w-4 h-4 ${pipelineState.active ? 'text-[#00EC97] animate-spin' : 'text-slate-400'}`} />
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+                      NEAR Intent Execution Pipeline
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${pipelineState.active ? 'bg-[#00EC97] animate-ping' : 'bg-slate-600'}`} />
+                    <span className="text-xs font-mono text-slate-300">
+                      {pipelineState.active ? `Step ${pipelineState.step}/4 Active` : 'Idle / Monitoring'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4 Steps Progress Bar */}
+                <div className="grid grid-cols-4 gap-2 mb-5">
+                  {[
+                    { step: 1, label: '1. AI Signal' },
+                    { step: 2, label: '2. Intent Sign' },
+                    { step: 3, label: '3. Solver Match' },
+                    { step: 4, label: '4. MPC Settlement' }
+                  ].map((s) => {
+                    const isDone = pipelineState.step > s.step || (!pipelineState.active && pipelineState.step === 4);
+                    const isCurrent = pipelineState.active && pipelineState.step === s.step;
+                    return (
+                      <div
+                        key={s.step}
+                        className={`rounded-xl p-2.5 border text-center transition-all ${
+                          isDone
+                            ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                            : isCurrent
+                            ? 'bg-[#00EC97]/15 border-[#00EC97] text-[#00EC97] animate-pulse shadow-lg shadow-[#00EC97]/10'
+                            : 'bg-slate-900/60 border-slate-800 text-slate-500'
+                        }`}
+                      >
+                        <div className="text-[11px] font-bold">{s.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Active Execution Details */}
+                {pipelineState.active || pipelineState.step === 4 ? (
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="text-xs text-slate-400">Trigger Reason:</div>
+                        <div className="text-sm font-semibold text-white mt-0.5">{pipelineState.reason}</div>
+                      </div>
+                      <span className="text-[11px] font-mono px-2 py-1 rounded bg-[#00EC97]/10 text-[#00EC97] border border-[#00EC97]/30">
+                        Gasless for User ($0.00)
+                      </span>
+                    </div>
+
+                    {pipelineState.solvers.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-slate-900">
+                        <div className="text-xs font-semibold text-slate-300">Competing Solver Auction Quotes:</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {pipelineState.solvers.map((sol, idx) => (
+                            <div
+                              key={idx}
+                              className={`rounded-lg p-2.5 border text-xs ${
+                                sol.winner
+                                  ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                                  : 'bg-slate-900/50 border-slate-800 text-slate-400'
+                              }`}
+                            >
+                              <div className="flex justify-between font-bold">
+                                <span>{sol.name.split(' ')[0]}</span>
+                                <span className={sol.winner ? 'text-[#00EC97]' : 'text-slate-500'}>{sol.tag}</span>
+                              </div>
+                              <div className="mt-1 font-mono text-[11px]">
+                                Out: ${sol.outUsd.toFixed(2)} ({sol.latency})
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl bg-slate-950/50 border border-slate-800/80 p-8 text-center text-slate-400 text-xs">
+                    System stable. AI agent continuously monitoring multi-chain price feeds &amp; drift thresholds.
+                  </div>
+                )}
+              </div>
+
+              {/* Live Audit Log Stream */}
+              <div className="rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-5 shadow-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-cyan-400" />
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+                      Agent Audit Log &amp; Transaction Stream
+                    </h2>
+                  </div>
+                  <span className="text-xs text-slate-400 font-mono">Real-time Events</span>
+                </div>
+
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                              log.type === 'AI_SIGNAL'
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                : log.type === 'INTENT'
+                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                                : log.type === 'SETTLED'
+                                ? 'bg-[#00EC97]/20 text-[#00EC97] border border-[#00EC97]/30'
+                                : log.type === 'MARKET'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-slate-800 text-slate-300'
+                            }`}
+                          >
+                            {log.type}
+                          </span>
+                          <span className="font-bold text-slate-200">{log.title}</span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-mono">{log.time}</span>
+                      </div>
+                      <p className="text-slate-400 text-[11px] pl-1">{log.detail}</p>
+                      {log.hash && (
+                        <div className="text-[10px] font-mono text-cyan-400/80 pl-1">
+                          Hash: {log.hash}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* SDK / PAYLOAD INSPECTOR VIEW */
+          <div className="space-y-6">
+            <div className="rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-6 shadow-xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <Code2 className="w-5 h-5 text-cyan-400" />
+                  <div>
+                    <h2 className="text-base font-bold text-white">NEAR Intents SDK Integration Snippet</h2>
+                    <p className="text-xs text-slate-400">TypeScript implementation used by OmniRebalance AI for gasless cross-chain intent settlement.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(SDK_INTEGRATION_SNIPPET, setCopiedCode)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"
+                >
+                  {copiedCode ? <Check className="w-3.5 h-3.5 text-[#00EC97]" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedCode ? 'Copied Snippet!' : 'Copy Code'}
+                </button>
+              </div>
+
+              <pre className="p-4 rounded-xl bg-slate-950 text-slate-300 font-mono text-xs overflow-x-auto border border-slate-800/80 leading-relaxed">
+                {SDK_INTEGRATION_SNIPPET}
+              </pre>
+            </div>
+
+            {pipelineState.intentPayload && (
+              <div className="rounded-2xl bg-[#0D1424]/90 border border-slate-800 p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <Terminal className="w-5 h-5 text-[#00EC97]" />
+                    <div>
+                      <h2 className="text-base font-bold text-white">Last Executed Intent JSON Payload</h2>
+                      <p className="text-xs text-slate-400">Inspect the exact data structure signed by the session key and verified on NEAR.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(JSON.stringify(pipelineState.intentPayload, null, 2), setCopiedPayload)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    {copiedPayload ? <Check className="w-3.5 h-3.5 text-[#00EC97]" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedPayload ? 'Copied Payload!' : 'Copy JSON'}
+                  </button>
+                </div>
+
+                <pre className="p-4 rounded-xl bg-slate-950 text-[#00EC97] font-mono text-xs overflow-x-auto border border-slate-800/80 leading-relaxed">
+                  {JSON.stringify(pipelineState.intentPayload, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
