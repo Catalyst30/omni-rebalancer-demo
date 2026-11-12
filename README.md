@@ -33,7 +33,7 @@ OmniRebalance AI utilizes NEAR's chain abstraction stack as its core settlement 
 
 ---
 
-## 4. How to Try the Demo (Judge Verification Steps)
+## 4. How to Try the Demo
 
 You can test the live interactive MVP immediately in your browser without wallet setup or mainnet funds *(per NEAR Hackathon Rule Q-007 & Q-012)*:
 
